@@ -284,3 +284,57 @@
         )
     )
 )
+
+(define-public (claim-rewards)
+    (begin
+        (asserts! (var-get pool-active) (err ERR-POOL-INACTIVE))
+        
+        (let 
+            (
+                (staker-balance (default-to u0 (map-get? staker-balances tx-sender)))
+                (current-rewards (default-to u0 (map-get? staker-rewards tx-sender)))
+                (blocks-passed (- block-height (var-get last-distribution-block)))
+                (new-rewards (calculate-yield staker-balance blocks-passed))
+                (total-rewards (+ current-rewards new-rewards))
+            )
+            (asserts! (> total-rewards u0) (err ERR-NO-YIELD-AVAILABLE))
+            
+            ;; Update rewards balance
+            (map-set staker-rewards tx-sender u0)
+            (map-set staker-balances tx-sender (+ staker-balance total-rewards))
+            
+            ;; Log rewards claim event
+            (print {
+                event: "rewards-claimed",
+                staker: tx-sender,
+                rewards: total-rewards
+            })
+            
+            (ok total-rewards)
+        )
+    )
+)
+
+;; Transfer and Allowance Functions
+(define-public (transfer (amount uint) (sender principal) (recipient principal) (memo (optional (buff 34))))
+    (begin
+        ;; Validate sender authorization
+        (asserts! (is-eq tx-sender sender) (err ERR-UNAUTHORIZED))
+        
+        ;; Perform internal transfer
+        (try! (transfer-internal amount sender recipient))
+        
+        ;; Handle optional memo
+        (match memo to-print (print to-print) 0x)
+        
+        ;; Log transfer event
+        (print {
+            event: "transfer",
+            sender: sender,
+            recipient: recipient,
+            amount: amount
+        })
+        
+        (ok true)
+    )
+)
