@@ -338,3 +338,54 @@
         (ok true)
     )
 )
+
+(define-public (set-token-uri (new-uri (optional (string-utf8 256))))
+    (begin
+        ;; Validate owner
+        (asserts! (is-eq tx-sender contract-owner) (err ERR-OWNER-ONLY))
+        
+        ;; Validate URI if provided
+        (match new-uri 
+            uri (begin
+                (asserts! (<= (len uri) MAX-TOKEN-URI-LENGTH) (err ERR-INVALID-URI))
+                (print {
+                    event: "token-uri-updated",
+                    new-uri: uri
+                })
+                (ok (var-set token-uri (some uri)))
+            )
+            (ok (var-set token-uri none))
+        )
+    )
+)
+
+;; Read-only Functions
+(define-read-only (get-staker-balance (staker principal))
+    (ok (default-to u0 (map-get? staker-balances staker)))
+)
+
+(define-read-only (get-staker-rewards (staker principal))
+    (ok (default-to u0 (map-get? staker-rewards staker)))
+)
+
+(define-read-only (get-pool-stats)
+    (ok {
+        total-staked: (var-get total-staked),
+        total-yield: (var-get total-yield),
+        current-rate: (var-get yield-rate),
+        pool-active: (var-get pool-active),
+        insurance-active: (var-get insurance-active),
+        insurance-balance: (var-get insurance-fund-balance)
+    })
+)
+
+(define-read-only (get-risk-score (staker principal))
+    (ok (default-to u0 (map-get? risk-scores staker)))
+)
+
+;; Contract Initialization
+(begin
+    (var-set pool-active false)
+    (var-set insurance-active false)
+    (var-set last-distribution-block block-height)
+)
