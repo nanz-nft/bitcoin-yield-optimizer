@@ -118,7 +118,7 @@
 (define-private (check-yield-availability)
     (let 
         (
-            (current-block block-height)
+            (current-block stacks-block-height)
             (last-distribution (var-get last-distribution-block))
         )
         (if (>= current-block (+ last-distribution BLOCKS-PER-DAY))
@@ -164,13 +164,13 @@
         ;; Initialize pool
         (var-set pool-active true)
         (var-set yield-rate initial-rate)
-        (var-set last-distribution-block block-height)
+        (var-set last-distribution-block stacks-block-height)
         
         ;; Log initialization event
         (print {
             event: "pool-initialized",
             initial-rate: initial-rate,
-            block: block-height
+            block: stacks-block-height
         })
         
         (ok true)
@@ -258,7 +258,7 @@
         
         (let 
             (
-                (current-block block-height)
+                (current-block stacks-block-height)
                 (blocks-passed (- current-block (var-get last-distribution-block)))
                 (total-yield-amount (calculate-yield (var-get total-staked) blocks-passed))
             )
@@ -293,7 +293,7 @@
             (
                 (staker-balance (default-to u0 (map-get? staker-balances tx-sender)))
                 (current-rewards (default-to u0 (map-get? staker-rewards tx-sender)))
-                (blocks-passed (- block-height (var-get last-distribution-block)))
+                (blocks-passed (- stacks-block-height (var-get last-distribution-block)))
                 (new-rewards (calculate-yield staker-balance blocks-passed))
                 (total-rewards (+ current-rewards new-rewards))
             )
@@ -387,5 +387,5 @@
 (begin
     (var-set pool-active false)
     (var-set insurance-active false)
-    (var-set last-distribution-block block-height)
+    (var-set last-distribution-block stacks-block-height)
 )
