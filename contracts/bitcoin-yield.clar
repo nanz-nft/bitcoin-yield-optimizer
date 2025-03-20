@@ -148,3 +148,69 @@
         )
     )
 )
+
+;; Public Functions
+(define-public (initialize-pool (initial-rate uint))
+    (begin
+        ;; Validate function caller
+        (asserts! (is-eq tx-sender contract-owner) (err ERR-OWNER-ONLY))
+        
+        ;; Check pool is not already initialized
+        (asserts! (not (var-get pool-active)) (err ERR-ALREADY-INITIALIZED))
+        
+        ;; Validate initial rate
+        (asserts! (and (> initial-rate u0) (<= initial-rate MAX-YIELD-RATE)) (err ERR-INVALID-AMOUNT))
+        
+        ;; Initialize pool
+        (var-set pool-active true)
+        (var-set yield-rate initial-rate)
+        (var-set last-distribution-block block-height)
+        
+        ;; Log initialization event
+        (print {
+            event: "pool-initialized",
+            initial-rate: initial-rate,
+            block: block-height
+        })
+        
+        (ok true)
+    )
+)
+
+(define-public (stake (amount uint))
+    (begin
+        ;; Validate pool status
+        (asserts! (var-get pool-active) (err ERR-POOL-INACTIVE))
+        
+        ;; Validate stake amount
+        (asserts! (>= amount MINIMUM-STAKE-AMOUNT) (err ERR-MINIMUM-STAKE))
+        
+        (let 
+            (
+                (current-balance (default-to u0 (map-get? staker-balances tx-sender)))
+                (new-balance (+ current-balance amount))
+            )
+            (map-set staker-balances tx-sender new-balance)
+            (var-set total-staked (+ (var-get total-staked) amount))
+            
+            ;; Update risk score
+            (update-risk-score tx-sender amount)
+            
+            ;; Optional insurance coverage
+            (if (var-get insurance-active)
+                (map-set insurance-coverage tx-sender amount)
+                true
+            )
+            
+            ;; Log staking event
+            (print {
+                event: "stake",
+                staker: tx-sender,
+                amount: amount,
+                total-staked: new-balance
+            })
+            
+            (ok true)
+        )
+    )
+)
